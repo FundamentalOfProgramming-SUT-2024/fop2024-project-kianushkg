@@ -45,6 +45,10 @@ typedef struct{
     int* spell_state;
     char** explored_map;
     int* enemy_health;
+    int hunger_distance;
+    int regen_distance;
+    int hunger_health_distance;
+    int exprience;
     int x;
     int y;
 } game;
@@ -66,12 +70,15 @@ void login_menu_print();
 void login1();
 void login2();
 void login3();
+void profile_menu();
 void pregame_menu();
 void pregame_menu_print();
 void settings();
 void setting_menu1_print();
 void setting_menu2_print();
 void scoreboard();
+int score_check();
+int rank_check();
 room_info* create_map_floor1();
 room_info* create_map_floor2();
 char** create_map();
@@ -108,6 +115,9 @@ void e_button_function();
 void consume_food();
 void consume_selected_food();
 void health_spell();
+void health_regen();
+void hunger_health();
+void hunger();
 void pick_spell_message();
 void select_spell();
 void save_game();
@@ -120,6 +130,7 @@ void room_color_on();
 void room_color_off();
 int no_health_death();
 int win_game();
+
 
 
 
@@ -137,6 +148,8 @@ int main(){
     init_color(96, 553, 43, 256);
     // light blue :
     init_color(95, 216, 686, 882);
+    // light blue 2 :
+    init_color(89, 376, 545, 757);
     // light red :
     init_color(94, 973, 478, 325);
     // light green :
@@ -145,6 +158,8 @@ int main(){
     init_color(92, 694, 839, 565);
     // purpul like 2
     init_color(91, 391, 51, 373);
+    // beige
+    init_color(90, 831, 741, 675);
 
     init_pair(1, COLOR_RED, COLOR_BLACK);
     init_pair(2, COLOR_BLACK, COLOR_BLACK);
@@ -168,15 +183,19 @@ int main(){
     init_pair(14, 93, COLOR_BLACK);
     // normal room
     init_pair(15, 92, COLOR_BLACK);
+    // normal room 2
+    init_pair(18, 89, COLOR_BLACK);
     // spell room
     init_pair(16, 91, COLOR_BLACK);
+    // menu 
+    init_pair(17, 90, COLOR_BLACK);
 
     int screen_height, screen_width;
     int players_count=4;
     getmaxyx(stdscr, screen_height, screen_width);
     
-    player_info* players_info = (player_info*)malloc(100 * sizeof(player_info));
-    for(int i=1; i<=100; i++){
+    player_info* players_info = (player_info*)malloc(110 * sizeof(player_info));
+    for(int i=1; i<=110; i++){
         players_info[i].email = (char*)malloc(50 * sizeof(char));
         players_info[i].username = (char*)malloc(50 * sizeof(char));
         players_info[i].password = (char*)malloc(50 * sizeof(char));
@@ -186,16 +205,21 @@ int main(){
     char line[500];
     for(int i=1; i<=players_count; i++){
         fgets(line, sizeof(line), info);
-        sscanf(line, "%s %s %d %d %d %d", players_info[i].username, players_info[i].password,
-        &players_info[i].rank, &players_info[i].score, &players_info[i].gold, &players_info[i].exprience);
+        sscanf(line, "%s", players_info[i].email);
+        fgets(line, sizeof(line), info);
+        sscanf(line, "%s", players_info[i].username);
+        fgets(line, sizeof(line), info);
+        sscanf(line, "%s", players_info[i].password);
+        fgets(line, sizeof(line), info);
+        sscanf(line, "%d %d %d", &players_info[i].score, &players_info[i].gold, &players_info[i].exprience);
     }
 
-    login_options(screen_height, screen_width, players_info, players_count);
+    login_options(screen_height, screen_width, players_info, &players_count);
 
     clear();
     refresh();
     
-    pregame_menu(screen_height, screen_width, players_info, players_count);
+    pregame_menu(screen_height, screen_width, players_info, &players_count);
 
     clear();
     refresh();
@@ -206,15 +230,15 @@ int main(){
 }
 
 
-void get_email(int screen_height, int screen_width, player_info* players_info, int players_count){
+void get_email(int screen_height, int screen_width, player_info* players_info, int* players_count){
     mvprintw(screen_height/2 - 1, screen_width/2 - 20, "please enter an email : ");
     refresh();
-    getnstr(players_info[players_count].email, 49);
+    getnstr(players_info[(*players_count)].email, 49);
     email_check(screen_height, screen_width, players_info, players_count);
 }
 
 
-char* get_username1(int screen_height, int screen_width, player_info* players_info, int players_count){
+char* get_username1(int screen_height, int screen_width, player_info* players_info, int* players_count){
     mvprintw(screen_height/2 - 1, screen_width/2 - 20, "please enter your username : ");
     refresh();
     char* user = (char*)malloc(50 * sizeof(char));
@@ -223,14 +247,14 @@ char* get_username1(int screen_height, int screen_width, player_info* players_in
 }
 
 
-void get_username2(int screen_height, int screen_width, player_info* players_info, int players_count){
+void get_username2(int screen_height, int screen_width, player_info* players_info, int* players_count){
     mvprintw(screen_height/2, screen_width/2 - 20, "please enter a username : ");
     refresh();
-    getnstr(players_info[players_count].username, 49);
+    getnstr(players_info[(*players_count)].username, 49);
 }
 
 
-char* get_password1(int screen_height, int screen_width, player_info* players_info, int players_count){
+char* get_password1(int screen_height, int screen_width, player_info* players_info, int* players_count){
     mvprintw(screen_height/2 + 1, screen_width/2 - 20, "please enter your password : ");
     refresh();
     char* pass = (char*)malloc(50 * sizeof(char));
@@ -239,40 +263,40 @@ char* get_password1(int screen_height, int screen_width, player_info* players_in
 }
 
 
-void get_password2(int screen_height, int screen_width, player_info* players_info, int players_count){
+void get_password2(int screen_height, int screen_width, player_info* players_info, int* players_count){
     mvprintw(screen_height/2 + 1, screen_width/2 - 20, "please enter a password : ");
     attron(COLOR_PAIR(1));
     mvprintw(screen_height / 2 - 4, screen_width / 2 - 47, "password must be atleast 7 characters and contain lowercase and uppercase letters and a number");
     refresh();
     attroff(COLOR_PAIR(1));
     move(screen_height / 2 + 1, screen_width / 2 + 6);
-    getnstr(players_info[players_count].password, 49);
+    getnstr(players_info[(*players_count)].password, 49);
     password_format_check(screen_height, screen_width, players_info, players_count);
 }
 
 
-void email_check(int screen_height, int screen_width, player_info* players_info, int players_count){
+void email_check(int screen_height, int screen_width, player_info* players_info, int* players_count){
     int check_counter=0;
     int atsign=0;
     int dot=0;
-    int length = strlen(players_info[players_count].email);
+    int length = strlen(players_info[(*players_count)].email);
     for(int i=0; i < length; i++){
-        if(players_info[players_count].email[i] == '@'){
+        if(players_info[(*players_count)].email[i] == '@'){
             atsign++;
-            if( (players_info[players_count].email[i + 1]  != '.') && (i != 0)){
-            if((players_info[players_count].email[i - 1] != '.'))
+            if( (players_info[(*players_count)].email[i + 1]  != '.') && (i != 0)){
+            if((players_info[(*players_count)].email[i - 1] != '.'))
             check_counter++;
             }
         }
 
-        if(players_info[players_count].email[i] == '.'){
+        if(players_info[(*players_count)].email[i] == '.'){
             dot++;
         }
     }
 
-    if( (players_info[players_count].email[length - 3] != '@') && (players_info[players_count].email[length - 3] != '.')
-        && (players_info[players_count].email[length - 2] != '@') && (players_info[players_count].email[length - 2] != '.')
-        && (players_info[players_count].email[length - 1] != '@') && (players_info[players_count].email[length - 1] != '.') ){
+    if( (players_info[(*players_count)].email[length - 3] != '@') && (players_info[(*players_count)].email[length - 3] != '.')
+        && (players_info[(*players_count)].email[length - 2] != '@') && (players_info[(*players_count)].email[length - 2] != '.')
+        && (players_info[(*players_count)].email[length - 1] != '@') && (players_info[(*players_count)].email[length - 1] != '.') ){
             check_counter++;
         }
 
@@ -298,12 +322,12 @@ void email_check(int screen_height, int screen_width, player_info* players_info,
 }
 
 
-void user_exist_check(int screen_height, int screen_width, player_info* players_info, int players_count){
+void user_exist_check(int screen_height, int screen_width, player_info* players_info, int* players_count){
     int state = 0;
-    int length = strlen(players_info[players_count].username);
+    int length = strlen(players_info[(*players_count)].username);
 
-    for(int i=1; i<players_count; i++){
-        if(strcmp(players_info[players_count].username, players_info[i].username) == 0)
+    for(int i=1; i<(*players_count); i++){
+        if(strcmp(players_info[(*players_count)].username, players_info[i].username) == 0)
         state = 1;
     }
 
@@ -325,23 +349,23 @@ void user_exist_check(int screen_height, int screen_width, player_info* players_
     else{
         mvprintw(screen_height / 2 - 3, screen_width / 2 - 20, "                           ");
         refresh();
-        FILE *user_write = fopen("user_pass.txt", "a");
+        /*FILE *user_write = fopen("user_pass.txt", "a");
         fprintf(user_write,"%s ", players_info[players_count].username);
-        fclose(user_write);
+        fclose(user_write);*/
         return;
     }
 }
 
 
-void user_pass_check1(int screen_height, int screen_width, player_info* players_info, int players_count, char** user){
+void user_pass_check1(int screen_height, int screen_width, player_info* players_info, int* players_count, char** user){
     int state = 0;
     int length = strlen(*user);
     char line[100], temp_user[50], temp_pass[50];
-    FILE* user_check = fopen("user_pass.txt", "r");
-    for(int i=1; i<=players_count; i++){
-        fgets(line, sizeof(line), user_check);
-        sscanf(line, "%s %s", temp_user, temp_pass);
-        if(strcmp(*user, temp_user) == 0)
+    //FILE* user_check = fopen("user_pass.txt", "r");
+    for(int i=1; i<=(*players_count); i++){
+        //fgets(line, sizeof(line), user_check);
+        //sscanf(line, "%s %s", temp_user, temp_pass);
+        if(strcmp(*user, players_info[i].username) == 0)
         state = 1;
     }
     
@@ -365,11 +389,11 @@ void user_pass_check1(int screen_height, int screen_width, player_info* players_
 }
 
 
-void user_pass_check2(int screen_height, int screen_width, player_info* players_info, int players_count, char* user, char* pass){
+void user_pass_check2(int screen_height, int screen_width, player_info* players_info, int* players_count, char* user, char* pass){
     int state = 0;
     int length = strlen(pass);
     
-    for(int i=1; i<=players_count; i++){
+    for(int i=1; i<=(*players_count); i++){
         if((strcmp(user, players_info[i].username) == 0) && (strcmp(pass, players_info[i].password) == 0))
         state = 1;
     }
@@ -394,18 +418,18 @@ void user_pass_check2(int screen_height, int screen_width, player_info* players_
 }
 
 
-void password_format_check(int screen_height, int screen_width, player_info* players_info, int players_count){
-    int length = strlen(players_info[players_count].password);
+void password_format_check(int screen_height, int screen_width, player_info* players_info, int* players_count){
+    int length = strlen(players_info[(*players_count)].password);
     int check_counter=0, uppercase=0, lowercase=0, number=0;
 
     for(int i=0; i<length; i++){
-        if((players_info[players_count].password[i] >= 65) && (players_info[players_count].password[i] <= 90))
+        if((players_info[(*players_count)].password[i] >= 65) && (players_info[(*players_count)].password[i] <= 90))
         uppercase++;
 
-        if((players_info[players_count].password[i] >= 97) && (players_info[players_count].password[i] <= 122))
+        if((players_info[(*players_count)].password[i] >= 97) && (players_info[(*players_count)].password[i] <= 122))
         lowercase++;
 
-        if((players_info[players_count].password[i] >= 48) && (players_info[players_count].password[i] <= 57))
+        if((players_info[(*players_count)].password[i] >= 48) && (players_info[(*players_count)].password[i] <= 57))
         number++;
     }
 
@@ -413,9 +437,9 @@ void password_format_check(int screen_height, int screen_width, player_info* pla
         mvprintw(screen_height / 2 - 3, screen_width / 2 - 18, "                                     ");
         mvprintw(screen_height / 2 - 4, screen_width / 2 - 50, "                                                                                                   ");
         refresh();
-        FILE *pass_write = fopen("user_pass.txt", "a");
+        /*FILE *pass_write = fopen("user_pass.txt", "a");
         fprintf(pass_write,"%s ", players_info[players_count].password);
-        fclose(pass_write);
+        fclose(pass_write);*/
         return;
     }
 
@@ -435,7 +459,7 @@ void password_format_check(int screen_height, int screen_width, player_info* pla
 }
 
 
-void login_options(int screen_height, int screen_width, player_info* players_info, int players_count){
+void login_options(int screen_height, int screen_width, player_info* players_info, int* players_count){
     noecho();
     cbreak();
     int chosen_option=1, final_choice=0;
@@ -502,7 +526,7 @@ void login_options(int screen_height, int screen_width, player_info* players_inf
         break;
 
         case 2: 
-        login2(screen_height, screen_width, players_info, &players_count);
+        login2(screen_height, screen_width, players_info, players_count);
         break;
 
         case 3:
@@ -539,25 +563,60 @@ void login_menu_print(int screen_height, int screen_width, WINDOW* menu, int cho
 }
 
 
-void login1(int screen_height, int screen_width, player_info* players_info, int players_count){
+void login1(int screen_height, int screen_width, player_info* players_info, int* players_count){
     char* user = (char*)malloc(50 * sizeof(char));
     char* pass = (char*)malloc(50 * sizeof(char));
+    char* email = (char*)malloc(100 * sizeof(char));
+    char* temp_user = (char*)malloc(50 * sizeof(char));
+    char* temp_pass = (char*)malloc(50 * sizeof(char));
+    char* temp_email = (char*)malloc(100 * sizeof(char));
     user = get_username1(screen_height, screen_width, players_info, players_count);
     user_pass_check1(screen_height, screen_width, players_info, players_count, &user);
     pass = get_password1(screen_height, screen_width, players_info, players_count);
     user_pass_check2(screen_height, screen_width, players_info, players_count, user, pass);
+
+    /*FILE* user_pass = fopen("user_pass", "r");
+    char* line = (char*)malloc(150 * sizeof(char));
+    for(int i=1; i<=players_count; i++){
+    fgets(line, sizeof(line), user_pass);
+    sscanf(line, "%s %s %s", temp_email, temp_user, temp_pass);
+    if(strcmp(user, temp_user) == 0){
+        email = temp_email;
+    }
+    }
+    fclose(user_pass);*/
+
+    for(int i=1; i<=(*players_count); i++){
+        if(strcmp(user, players_info[i].username) == 0){
+            players_info[99].email = players_info[i].email;
+            players_info[99].score = players_info[i].score;
+            players_info[99].gold = players_info[i].gold;
+            players_info[99].exprience = players_info[i].exprience;
+        }
+    }
+    players_info[99].username = user;
+    players_info[99].password = pass;
 }
 
 
 void login2(int screen_height, int screen_width, player_info* players_info, int* players_count){
     (*players_count)++;
 
-    get_email(screen_height, screen_width, players_info, *players_count);
-    get_username2(screen_height, screen_width, players_info, *players_count);
-    user_exist_check(screen_height, screen_width, players_info, *players_count);
-    get_password2(screen_height, screen_width, players_info, *players_count);
+    get_email(screen_height, screen_width, players_info, players_count);
+    get_username2(screen_height, screen_width, players_info, players_count);
+    user_exist_check(screen_height, screen_width, players_info, players_count);
+    get_password2(screen_height, screen_width, players_info, players_count);
 
-
+    FILE* user_pass = fopen("user_pass.txt", "a");
+    fprintf(user_pass, "%s \n%s \n%s\n", players_info[*players_count].email, players_info[*players_count].username, players_info[*players_count].password);
+    fprintf(user_pass, "%d %d %d\n", 0, 0, 0);
+    fclose(user_pass);
+    players_info[99].email = players_info[*players_count].email;
+    players_info[99].username = players_info[*players_count].username;
+    players_info[99].password = players_info[*players_count].password;
+    players_info[99].score = 0;
+    players_info[99].gold = 0;
+    players_info[99].exprience = 0;
 }
 
 
@@ -566,7 +625,68 @@ void login3(int screen_height, int screen_width, player_info* players_info){
 }
 
 
-void pregame_menu(int screen_height, int screen_width, player_info* players_info, int players_count){
+void profile_menu(int screen_height, int screen_width, player_info* players_info, int* players_count){
+    clear();
+    refresh();
+    noecho();
+    curs_set(0);
+    keypad(stdscr, TRUE);
+    cbreak();
+    attron(A_BOLD | COLOR_PAIR(15));
+    mvprintw(3, screen_width / 2 - 10, "HELLO %s", players_info[99].username);
+    attroff(A_BOLD | COLOR_PAIR(15));
+
+    attron(A_BOLD | COLOR_PAIR(17));
+    mvprintw(6, screen_width / 2 - 20, "your username  :  %s", players_info[99].username);
+    mvprintw(7, screen_width / 2 - 20, "your email  :  %s", players_info[99].email);
+    mvprintw(9, screen_width /2 - 20, "press f to change your password");
+    attroff(A_BOLD | COLOR_PAIR(17));
+
+    attron(A_BOLD | COLOR_PAIR(12));
+    mvprintw(11, screen_width / 2 - 20, "press space to go back");
+    attroff(A_BOLD | COLOR_PAIR(12));
+    refresh();
+
+    int c = getch();
+    //c = 'f';
+    switch(c){
+        case 'f' : 
+        echo();
+        clear();
+        refresh();
+        int a = 99;
+        get_password2(screen_height, screen_width, players_info, &a);
+        noecho();
+        
+        FILE* user_pass = fopen("user_pass.txt", "w");
+        for(int i=1; i<=(*players_count); i++){
+            if(strcmp(players_info[i].username, players_info[99].username) != 0){
+                fprintf(user_pass, "%s \n%s \n%s\n", players_info[i].email, players_info[i].username, players_info[i].password);
+                fprintf(user_pass, "%d %d %d\n", players_info[i].score, players_info[i].gold, players_info[i].exprience);
+            }
+        }
+        fprintf(user_pass, "%s \n%s \n%s\n", players_info[99].email, players_info[99].username, players_info[99].password);
+        fprintf(user_pass, "%d %d %d\n", players_info[99].score, players_info[99].gold, players_info[99].exprience);
+        fclose(user_pass);
+
+        profile_menu(screen_height, screen_width, players_info, players_count);
+        break;
+
+        case ' ' :
+        clear();
+        refresh();
+        nocbreak();
+        echo();
+        curs_set(1);
+        pregame_menu(screen_height, screen_width, players_info, players_count);
+        break;
+    }
+}
+
+
+void pregame_menu(int screen_height, int screen_width, player_info* players_info, int* players_count){
+    clear();
+    refresh();
     noecho();
     cbreak();
     curs_set(0);
@@ -634,6 +754,7 @@ void pregame_menu(int screen_height, int screen_width, player_info* players_info
         break;
 
         case 5:
+        profile_menu(screen_height, screen_width, players_info, players_count);
         break;
     }
 
@@ -657,7 +778,7 @@ void pregame_menu_print(int screen_height, int screen_width, WINDOW* menu, int c
 }
 
 
-void settings(int screen_height, int screen_width, player_info* players_info, int players_count){
+void settings(int screen_height, int screen_width, player_info* players_info, int* players_count){
     clear();
     refresh();
     noecho();
@@ -806,16 +927,59 @@ void setting_menu2_print(int screen_height, int screen_width, WINDOW* menu2, int
 }
 
 
-void scoreboard(int screen_height, int screen_width, player_info* players_info, int players_count){
+void scoreboard(int screen_height, int screen_width, player_info* players_info, int* players_count){
+    clear();
+    refresh();
+    cbreak();
+    keypad(stdscr, TRUE);
     noecho();
     curs_set(0);
     char* current_user = (char*)malloc(50 * sizeof(char));
-    /*
-    this function should also get the username of current user 
-    */
+    
+    current_user = players_info[99].username;
 
-    for(int i=1; i<=players_count; i++){
-        for(int j=1; j<players_count; j++){
+    FILE* score = fopen("score.txt", "r");
+    fscanf(score, "%d %d %d", &players_info[99].score, &players_info[99].gold, &players_info[99].exprience);
+    fclose(score);
+
+    for(int i=1; i<=(*players_count); i++){
+        if(strcmp(players_info[i].username, players_info[99].username) == 0){
+            players_info[i] = players_info[99];
+        }
+    }
+     
+    FILE* user_pass = fopen("user_pass.txt", "w");
+    for(int i=1; i<=(*players_count); i++){
+        fprintf(user_pass, "%s \n%s \n%s\n", players_info[i].email, players_info[i].username, players_info[i].password);
+        fprintf(user_pass, "%d %d %d\n", players_info[i].score, players_info[i].gold, players_info[i].exprience);
+    }
+    fclose(user_pass);
+     
+    player_info* temp_players_info = (player_info*)malloc(110 * sizeof(player_info));
+    for(int i=1; i<=110; i++){
+        temp_players_info[i].email = (char*)malloc(50 * sizeof(char));
+        temp_players_info[i].username = (char*)malloc(50 * sizeof(char));
+        temp_players_info[i].password = (char*)malloc(50 * sizeof(char));
+    }
+
+    for(int i=0; i<(*players_count); i++){
+        temp_players_info[i] = players_info[i+1];
+    }
+    
+    for(int i=0; i<(*players_count); i++){
+        temp_players_info[i].rank = i + 1;
+    }
+
+    qsort(temp_players_info, (*players_count), sizeof(player_info), score_check);
+
+    for(int i=0; i<(*players_count); i++){
+        temp_players_info[i].rank = i + 1;
+    }
+
+    qsort(temp_players_info, (*players_count), sizeof(player_info), rank_check);
+
+    for(int i=1; i<=(*players_count); i++){
+        for(int j=1; j<(*players_count); j++){
             if((players_info[j].score > players_info[j+1].score) && (players_info[j].rank > players_info[j+1].rank)){
                 int temp = players_info[j].rank;
                 players_info[j].rank = players_info[j+1].rank;
@@ -839,8 +1003,46 @@ void scoreboard(int screen_height, int screen_width, player_info* players_info, 
     mvwprintw(board, 2, 50, "gold");
     mvwprintw(board, 2, 57, "experience");
     wattroff(board, A_BOLD);
+
+    for(int i=0; i<(*players_count); i++){
+        int h = temp_players_info[i].rank + 3;
+        if(temp_players_info[i].rank == 1){
+        wattron(board, A_BOLD | COLOR_PAIR(7));
+        mvwprintw(board, 4, 3, "champion");}
+        if(temp_players_info[i].rank == 2){
+        wattron(board, A_BOLD | COLOR_PAIR(6));
+        mvwprintw(board, 5, 3, "legend");}
+        if(temp_players_info[i].rank == 3){
+        wattron(board, A_BOLD | COLOR_PAIR(4));
+        mvwprintw(board, 6, 3, "hero");}
+
+        if(strcmp(current_user, temp_players_info[i].username) == 0)
+        wattron(board, A_UNDERLINE | A_BOLD);
+
+        mvwprintw(board, h, 13, "%d", temp_players_info[i].rank);
+        mvwprintw(board, h, 20, "%s", temp_players_info[i].username);
+        mvwprintw(board, h, 42, "%d", temp_players_info[i].score);
+        mvwprintw(board, h, 50, "%d", temp_players_info[i].gold);
+        mvwprintw(board, h, 60, "%d", temp_players_info[i].exprience);
+
+        if(strcmp(current_user, temp_players_info[i].username) == 0)
+        wattroff(board, A_UNDERLINE | A_BOLD);
+
+        if(temp_players_info[i].rank == 1)
+        wattroff(board, A_BOLD | COLOR_PAIR(7));
+        if(temp_players_info[i].rank == 2)
+        wattroff(board, A_BOLD | COLOR_PAIR(6));
+        if(temp_players_info[i].rank == 3)
+        wattroff(board, A_BOLD | COLOR_PAIR(4));
+
+        mvwaddstr(board, 4, 68, "🏆");
+        mvwaddstr(board, 5, 68, "🥈");
+        mvwaddstr(board, 6, 68, "🥉");
+    }
     
-    for(int j=1; j<=players_count; j++){
+    //
+
+    /*for(int j=1; j<=players_count; j++){
     for(int i=1; i<=players_count; i++){
         int h = players_info[i].rank + 3;
         if(players_info[i].rank == 1){
@@ -878,12 +1080,25 @@ void scoreboard(int screen_height, int screen_width, player_info* players_info, 
         mvwaddstr(board, 5, 68, "🥈");
         mvwaddstr(board, 6, 68, "🥉");
     }
-    }
+    }*/
 
     wrefresh(board);
+    
     getch();
     echo();
     curs_set(1);
+    nocbreak();
+    pregame_menu(screen_height, screen_width, players_info, players_count);
+}
+
+
+int score_check(const void *a, const void *b){
+    return ((player_info *)b)->score - ((player_info *)a)->score;
+}
+
+
+int rank_check(const void *a, const void *b) {
+    return ((player_info *)a)->rank - ((player_info *)b)->rank;
 }
 
 
@@ -1080,14 +1295,48 @@ room_info* create_map_floor2(int screen_height, int screen_width){
     unicode_map[30][56] = 1;
     unicode_map[9][130] = 1;
     unicode_map[28][104] = 1;
+    unicode_map[5][129] = 1;
+    unicode_map[7][122] = 1;
+    unicode_map[6][125] = 1;
+    unicode_map[10][123] = 1;
+
+    // diamond location
+    unicode_map[9][126] = 2;
+
+    // wand location
+    unicode_map[26][101] = 4;
+
+    // sword location
+    unicode_map[17][39] = 6;
+
+    // wand location
+    unicode_map[11][47] = 4;
+
+    // food location
+    unicode_map[27][54] = 72;
+    unicode_map[29][61] = 71;
+    unicode_map[12][96] = 72;
+    unicode_map[15][70] = 73;
+
+    //spell location 
+    // 8 health , 9 speed , 10 damage
+    unicode_map[19][70] = 8;
+    unicode_map[16][27] = 10;
 
     // end portal location
     unicode_map[10][126] = 100;
 
-    unicode_map[17][30] = 99;
-    unicode_map[17][74] = 99;
-    unicode_map[7][96] = 99;
-    unicode_map[28][56] = 99;
+    // s location
+    map2[17][74] = 'S';
+
+    // u location
+    map2[10][102] = 'U';
+    
+    // trap location
+    unicode_map[17][32] = 99;
+    unicode_map[16][80] = 99;
+    unicode_map[11][97] = 99;
+    unicode_map[27][104] = 99;
 
     door_placement(map2, 35, 15);
     door_placement(map2, 74, 14);
@@ -1171,7 +1420,7 @@ void doorway_placement(char** map1, int x, int y, int length, int alignment){
 }
 
 
-void new_game(int screen_height, int screen_width, player_info* players_info, int player_count){
+void new_game(int screen_height, int screen_width, player_info* players_info, int* player_count){
     int floor_number = 1;
     room_info* rooms_info_floor1 = create_map_floor1(screen_height, screen_width);
     room_info* rooms_info_floor2 = create_map_floor2(screen_height, screen_width);
@@ -1184,11 +1433,15 @@ void new_game(int screen_height, int screen_width, player_info* players_info, in
     game_info.arrow = 0;
     game_info.sword = 0;
     game_info.weapon = 1;
-    game_info.hunger = 10;
+    game_info.hunger = 0;
     game_info.food = 0;
     game_info.food1 = 0;
     game_info.food2 = 0;
     game_info.food3 = 0;
+    game_info.hunger_distance = 0;
+    game_info.regen_distance = 0;
+    game_info.hunger_health_distance = 0;
+    game_info.exprience = 0;
     game_info.enemy_health = (int*)malloc(20 * sizeof(char));
     game_info.enemy_health[1] = 5;
     game_info.enemy_health[2] = 10;
@@ -1213,9 +1466,12 @@ void new_game(int screen_height, int screen_width, player_info* players_info, in
 
     int game_state = gameplay(screen_height, screen_width, &floor_number, rooms_info_floor1, rooms_info_floor2, &game_info);
     if(game_state == 99){
+        clear();
+        refresh();
+        save_game(&game_info, rooms_info_floor1, rooms_info_floor2, screen_height, screen_width);
         pregame_menu(screen_height, screen_width, players_info, player_count);
     }
-    save_game(&game_info, rooms_info_floor1, rooms_info_floor2, screen_height, screen_width);
+    
     return;
 }
 
@@ -1432,6 +1688,11 @@ game* game_info){
 
         case 2 :
         (*game_info).floor = 2;
+        for(int i=1; i<=screen_height; i++){
+            for(int j=1; j<=screen_width; j++){
+                (*game_info).explored_map[i][j] = ' ';
+            }
+        }
         game_state = movement(rooms_info_floor2[1].map, rooms_info_floor2, floor_number, screen_height, screen_width, game_info);
         if(game_state == 99){
             return 99;
@@ -1455,24 +1716,27 @@ void save_game(game* game_info, room_info* rooms_info_floor1,room_info* rooms_in
     4 game info
     5 explored map
     */
-    FILE* game_save = fopen("game.txt", "a");
+    FILE* game_save = fopen("game.txt", "w");
 
     for(int i=1; i<=screen_height; i++){
         for(int j=1; j<=screen_width; j++){
-            fprintf(game_save, "%c\n", rooms_info_floor1[1].map[i][j]);
+            fprintf(game_save, "%c ", rooms_info_floor1[1].map[i][j]);
         }
+        fprintf(game_save, "\n");
     }
 
     for(int i=1; i<=screen_height; i++){
         for(int j=1; j<=screen_width; j++){
-            fprintf(game_save, "%c\n", rooms_info_floor2[1].map[i][j]);
+            fprintf(game_save, "%c ", rooms_info_floor2[1].map[i][j]);
         }
+        fprintf(game_save, "\n");
     }
 
     for(int i=1; i<=screen_height; i++){
         for(int j=1; j<=screen_width; j++){
-            fprintf(game_save, "%d\n", rooms_info_floor1[1].unicode_map[i][j]);
+            fprintf(game_save, "%d ", rooms_info_floor1[1].unicode_map[i][j]);
         }
+        fprintf(game_save, "\n");
     }
 
     /*FILE* game_save = fopen("game.txt", "a");
@@ -1484,12 +1748,14 @@ void save_game(game* game_info, room_info* rooms_info_floor1,room_info* rooms_in
     }*/
 
     for(int i=1; i<=7; i++){
-        fprintf(game_save, "%d\n", rooms_info_floor1[i].state);
+        fprintf(game_save, "%d ", rooms_info_floor1[i].state);
     }
+    fprintf(game_save, "\n");
 
     for(int i=1; i<=7; i++){
-        fprintf(game_save, "%d\n", rooms_info_floor2[i].state);
+        fprintf(game_save, "%d ", rooms_info_floor2[i].state);
     }
+    fprintf(game_save, "\n");
 
     fprintf(game_save, "%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d ", (*game_info).arrow, (*game_info).dagger, (*game_info).floor,
     (*game_info).food, (*game_info).gold, (*game_info).health, (*game_info).hunger, (*game_info).score, (*game_info).spell[1],
@@ -1499,8 +1765,9 @@ void save_game(game* game_info, room_info* rooms_info_floor1,room_info* rooms_in
 
     for(int i=1; i<=screen_height; i++){
         for(int j=1; j<=screen_width; j++){
-            fprintf(game_save, "%c\n", (*game_info).explored_map[i][j]);
+            fprintf(game_save, "%c ", (*game_info).explored_map[i][j]);
         }
+        fprintf(game_save, "\n");
     }
 
     fclose(game_save);
@@ -1621,7 +1888,7 @@ int movement(char** map, room_info* rooms_info, int *floor_number, int screen_he
             break;
 
             case 27 :
-            return 0;
+            return 99;
             break;
         }
 
@@ -1641,6 +1908,9 @@ int movement(char** map, room_info* rooms_info, int *floor_number, int screen_he
         mvprintw(player_avatar_y, player_avatar_x, "@");
         attroff(A_REVERSE | COLOR_PAIR(8));
         
+        health_regen(game_info);
+        hunger_health(game_info);
+        hunger(game_info);
         enemy_check(map, rooms_info, game_info, player_avatar_x, player_avatar_y, screen_height);
         game_status_print(screen_height, *game_info);
 
@@ -1680,6 +1950,30 @@ int move_check(char** map, char** temp_map, int* x, int* y, int** unicode_map, g
        (map[*y][*x] == '<') ||
        (map[*y][*x] == '^')
        ){
+
+        if((*game_info).regen_distance == 16){
+            (*game_info).regen_distance = 0;
+        }
+
+        else{
+            (*game_info).regen_distance++;
+        }
+
+        if((*game_info).hunger_distance == 31){
+            (*game_info).hunger_distance = 0;
+        }
+
+        else{
+            (*game_info).hunger_distance++;
+        }
+
+        if((*game_info).hunger_health_distance == 21){
+            (*game_info).hunger_health_distance = 0;
+        }
+
+        else{
+            (*game_info).hunger_health_distance++;
+        }
 
         (*game_info).x = *x;
         (*game_info).y = *y;
@@ -1960,7 +2254,7 @@ void in_room_check(char** map, room_info* rooms_info, int x, int y){
             for(int k=rooms_info[i].x; k<=rooms_info[i].x + rooms_info[i].width; k++){
                 if((x == k) && (y == j)){
                     if(rooms_info[i].state == 0)
-                    new_room_message();
+                    new_room_message(rooms_info[i].type);
                     rooms_info[i].state = 1;
                 }
             }
@@ -1979,11 +2273,11 @@ void in_room_check(char** map, room_info* rooms_info, int x, int y){
         if(rooms_info[i].state){
                 for(int j=rooms_info[i].y; j<=rooms_info[i].y + rooms_info[i].height; j++){
                     for(int k=rooms_info[i].x; k<=rooms_info[i].x + rooms_info[i].width; k++){
-                        if((map[j][k]=='D') || (map[j][k]=='F') || (map[j][k]=='G') || (map[j][k]=='S') || (map[j][k]=='F')){
+                        if((map[j][k]=='D') || (map[j][k]=='F') || (map[j][k]=='G') || (map[j][k]=='S') || (map[j][k]=='U')){
                             attron(A_BOLD | COLOR_PAIR(1));
                         }
                         mvprintw(j, k, "%c", map[j][k]);
-                        if((map[j][k]=='D') || (map[j][k]=='F') || (map[j][k]=='G') || (map[j][k]=='S') || (map[j][k]=='F')){
+                        if((map[j][k]=='D') || (map[j][k]=='F') || (map[j][k]=='G') || (map[j][k]=='S') || (map[j][k]=='U')){
                             attroff(A_BOLD | COLOR_PAIR(1));
                         }
                         if(rooms_info[1].unicode_map[j][k] == 1){
@@ -2210,20 +2504,26 @@ void in_room_check(char** map, room_info* rooms_info, int x, int y){
 
 void room_color_on(int type){
     if(type == 1){
-        attron(COLOR_PAIR(15));
+        attron(COLOR_PAIR(18));
     }
     else if(type == 2){
         attron(COLOR_PAIR(16));
+    }
+    else if( type == 3){
+        attron(COLOR_PAIR(7));
     }
 }
 
 
 void room_color_off(int type){
     if(type == 1){
-        attroff(COLOR_PAIR(15));
+        attroff(COLOR_PAIR(18));
     }
     else if(type == 2){
         attroff(COLOR_PAIR(16));
+    }
+    else if( type == 3){
+        attroff(COLOR_PAIR(7));
     }
 }
 
@@ -2252,10 +2552,13 @@ void m_button_function(int screen_height, int screen_width, char** map, char** t
     for(int i=1; i<=7; i++){
         draw_room(rooms_info[i].y, rooms_info[i].x, rooms_info[i].height, rooms_info[i].width, rooms_info[i].type);
     }
-
-    for(int i=1; i<=screen_height; i++){
+    
+    // changed i from 1 to 3
+    for(int i=3; i<=screen_height; i++){
         for(int j=1; j<=screen_width; j++){
+            //if((map[i][j] == '+') || (map[i][j] == '#')){
             mvprintw(i, j, "%c", map[i][j]);
+            //}
         }
     }
 
@@ -2280,11 +2583,28 @@ void m_button_function(int screen_height, int screen_width, char** map, char** t
 }
 
 
-void new_room_message(){
+void new_room_message(int type){
     attron(A_BOLD | COLOR_PAIR(3));
-    mvprintw(2, 5, "YOU HAVE ENTERED A NEW ROOM");
+    switch(type){
+        case 1 :
+        attron(A_BOLD | COLOR_PAIR(3));
+        mvprintw(2, 5, "YOU HAVE ENTERED A NEW ROOM");
+        attroff(A_BOLD | COLOR_PAIR(3));
+        break;
+
+        case 2 :
+        attron(A_BOLD | COLOR_PAIR(16));
+        mvprintw(2, 5, "YOU HAVE ENTERED A SPELL ROOM");
+        attroff(A_BOLD | COLOR_PAIR(16));
+        break;
+
+        case 3 :
+        attron(A_BOLD | COLOR_PAIR(7));
+        mvprintw(2, 5, "YOU HAVE ENTERED THE TREASURE ROOM");
+        attroff(A_BOLD | COLOR_PAIR(7));
+        break;
+    }
     refresh();
-    attroff(A_BOLD | COLOR_PAIR(3));
 }
 
 
@@ -2444,6 +2764,7 @@ void stepontrap_message(){
 
 
 void game_status_print(int screen_height, game game_info){
+    mvprintw(screen_height - 1, 3, "                                                                              ");
     attron(A_BOLD | COLOR_PAIR(11));
     mvprintw(screen_height - 1, 3, "CURRENT FLOOR : %d    HEALTH : %d / 15    GOLD : %d     SCORE : %d", game_info.floor, game_info.health,
     game_info.gold, game_info.score);
@@ -2735,6 +3056,7 @@ void consume_food(int screen_height, int screen_width, game* game_info){
             if((*game_info).hunger >= 3){
                 temp_hunger = (*game_info).hunger;
                 (*game_info).hunger -= 3;
+                //health_spell(game_info);
                 consume_selected_food(game_info);
                 //(*game_info).food--;
 
@@ -2771,6 +3093,7 @@ void consume_food(int screen_height, int screen_width, game* game_info){
                 temp_hunger = (*game_info).hunger;
                 (*game_info).hunger = 0;
                 consume_selected_food(game_info);
+                health_spell(game_info);
                 //(*game_info).food--;
 
                 if((*game_info).health <= 13){
@@ -2880,16 +3203,19 @@ void consume_food(int screen_height, int screen_width, game* game_info){
 void consume_selected_food(game* game_info){
     if((*game_info).food1 >= 1){
         (*game_info).food1--;
+        (*game_info).food--;
     }
 
     else{
         if((*game_info).food2 >= 1){
             (*game_info).food2--;
+            (*game_info).food--;
         }
 
         else{
             if((*game_info).food3 >= 1){
             (*game_info).food3--;
+            (*game_info).food--;
             }
         }
     }
@@ -2897,6 +3223,7 @@ void consume_selected_food(game* game_info){
 
 
 void health_spell(game* game_info){
+    //if((*game_info).food){
     if((*game_info).spell_state[1]){
         if((*game_info).health <= 13){
             (*game_info).health += 2;
@@ -2906,6 +3233,37 @@ void health_spell(game* game_info){
         else if((*game_info).health == 14){
             (*game_info).health = 15;
             (*game_info).spell_state--;
+        }
+    //}
+    }
+}
+
+
+void health_regen(game* game_info){
+    if((*game_info).regen_distance == 15){
+        if((*game_info).hunger == 0){
+            if((*game_info).health <= 14){
+                (*game_info).health++;
+                (*game_info).hunger++;
+            }
+        }
+    }
+}
+
+
+void hunger(game* game_info){
+    if((*game_info).hunger_distance == 30){
+        if((*game_info).hunger <= 9){
+            (*game_info).hunger++;
+        }
+    }
+}
+
+
+void hunger_health(game* game_info){
+    if((*game_info).hunger_health_distance == 20){
+        if((*game_info).hunger == 10){
+            (*game_info).health--;
         }
     }
 }
@@ -3034,19 +3392,19 @@ void select_spell(int screen_width, game* game_info){
 
 
 void enemy_check(char** map, room_info* rooms_info, game* game_info, int x, int y, int screen_height){
-    if((map[y+1][x]=='D') || (map[y+1][x]=='F') || (map[y+1][x]=='G') || (map[y+1][x]=='S') || (map[y+1][x]=='F')){
+    if((map[y+1][x]=='D') || (map[y+1][x]=='F') || (map[y+1][x]=='G') || (map[y+1][x]=='S') || (map[y+1][x]=='U')){
         enemy_action(rooms_info, game_info, map, x, y+1, screen_height);
     }
 
-    else if((map[y][x+1]=='D') || (map[y][x+1]=='F') || (map[y][x+1]=='G') || (map[y][x+1]=='S') || (map[y][x+1]=='F')){
+    else if((map[y][x+1]=='D') || (map[y][x+1]=='F') || (map[y][x+1]=='G') || (map[y][x+1]=='S') || (map[y][x+1]=='U')){
         enemy_action(rooms_info, game_info, map, x+1, y, screen_height);
     }
 
-    else if((map[y-1][x]=='D') || (map[y-1][x]=='F') || (map[y-1][x]=='G') || (map[y-1][x]=='S') || (map[y-1][x]=='F')){
+    else if((map[y-1][x]=='D') || (map[y-1][x]=='F') || (map[y-1][x]=='G') || (map[y-1][x]=='S') || (map[y-1][x]=='U')){
         enemy_action(rooms_info, game_info, map, x, y-1, screen_height);
     }
 
-    else if((map[y][x-1]=='D') || (map[y][x-1]=='F') || (map[y][x-1]=='G') || (map[y][x-1]=='S') || (map[y][x-1]=='F')){
+    else if((map[y][x-1]=='D') || (map[y][x-1]=='F') || (map[y][x-1]=='G') || (map[y][x-1]=='S') || (map[y][x-1]=='U')){
         enemy_action(rooms_info, game_info, map, x-1, y, screen_height);
     }
 }
@@ -3245,6 +3603,11 @@ int no_health_death(game game_info, int screen_height, int screen_width){
         getch();
         clear();
         refresh();
+        
+        FILE* score = fopen("score.txt", "w");
+        fprintf(score, "%d %d %d", game_info.score, game_info.gold, game_info.exprience);
+        fclose(score);
+
         return 1;
     }
 
@@ -3255,7 +3618,7 @@ int no_health_death(game game_info, int screen_height, int screen_width){
 int win_game(game game_info, int screen_height, int screen_width){
     clear();
     refresh();
-    int x = screen_width / 2 - 24;
+    int x = screen_width / 2 - 36;
     int y = 3;
     char *lost_art[] = {
     " __      __   ______   __    __        __       __   ______   __    __ ",
@@ -3284,8 +3647,13 @@ int win_game(game game_info, int screen_height, int screen_width){
         getch();
         clear();
         refresh();
-        return 1;
+        
+        game_info.exprience++;
+        FILE* score = fopen("score.txt", "w");
+        fprintf(score, "%d %d %d", game_info.score, game_info.gold, game_info.exprience);
+        fclose(score);
 
+        return 1;
 }
 
 
